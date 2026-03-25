@@ -8,6 +8,8 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 
 
 def hex_to_rgb(hex_str):
@@ -78,6 +80,38 @@ class ProposalGenerator:
         s.shadow.inherit = False
         return s
 
+    def flow_box(self, slide, l, t, w, h, text, fill_color=None, sz=11):
+        fill_color = fill_color or self.PRIMARY
+        shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, l, t, w, h)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = fill_color
+        shape.line.fill.background()
+        shape.shadow.inherit = False
+        tf = shape.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = text
+        p.font.size = Pt(sz)
+        p.font.bold = True
+        p.font.color.rgb = self.WHITE
+        p.font.name = self.FONT
+        p.alignment = PP_ALIGN.CENTER
+        return shape
+
+    def arrow_right(self, slide, l, t, w, h):
+        s = slide.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, l, t, w, h)
+        s.fill.solid()
+        s.fill.fore_color.rgb = RGBColor(0xDD, 0xDD, 0xDD)
+        s.line.fill.background()
+        s.shadow.inherit = False
+
+    def arrow_down(self, slide, l, t, w, h):
+        s = slide.shapes.add_shape(MSO_SHAPE.DOWN_ARROW, l, t, w, h)
+        s.fill.solid()
+        s.fill.fore_color.rgb = RGBColor(0xDD, 0xDD, 0xDD)
+        s.line.fill.background()
+        s.shadow.inherit = False
+
     def new_slide(self):
         s = self.prs.slides.add_slide(self.prs.slide_layouts[6])
         s.background.fill.solid()
@@ -132,18 +166,208 @@ class ProposalGenerator:
         s = self.new_slide()
         self.slide_title(s, '系統架構', 2)
 
-        bg = self.box(s, Inches(1.5), Inches(1.4), Inches(10.3), Inches(1.2))
-        flow = arch.get('flow', arch.get('description', ''))
-        self.tb(s, Inches(1.5), Inches(1.7), Inches(10.3), Inches(0.6),
-                flow, sz=15, align=PP_ALIGN.CENTER)
+        # Visual flow with colored boxes and arrows
+        tech_stack = arch.get('tech_stack', [])
+        COLORS = [
+            self.PRIMARY,
+            RGBColor(0x34, 0x98, 0xDB),
+            RGBColor(0x2E, 0xCC, 0x71),
+            RGBColor(0x9B, 0x59, 0xB6),
+            RGBColor(0xE7, 0x4C, 0x3C),
+            RGBColor(0x1A, 0xBC, 0x9C),
+        ]
 
-        self.tb(s, Inches(0.8), Inches(3.0), Inches(4), Inches(0.5), '技術選型', sz=20, bold=True)
-        tech_items = []
-        for t in arch.get('tech_stack', []):
-            tech_items.append(f"{t['name']}: {t['description']}")
+        BOX_W = Inches(2.2)
+        BOX_H = Inches(0.7)
+        ARR_W = Inches(0.5)
+        ARR_H = Inches(0.3)
+
+        # Render up to 4 boxes in a row with arrows
+        top_items = tech_stack[:4]
+        row1_y = Inches(1.5)
+        x_positions = []
+        for i, tech in enumerate(top_items):
+            x = Inches(0.8 + i * 3.0)
+            x_positions.append(x)
+            self.flow_box(s, x, row1_y, BOX_W, BOX_H, tech['name'], fill_color=COLORS[i % len(COLORS)])
+            if i < len(top_items) - 1:
+                self.arrow_right(s, x + BOX_W + Inches(0.1), row1_y + Inches(0.2), ARR_W, ARR_H)
+
+        # If more than 4 items, add second row
+        bottom_items = tech_stack[4:]
+        if bottom_items:
+            if x_positions:
+                mid_x = x_positions[len(x_positions) // 2]
+                self.arrow_down(s, mid_x + Inches(0.95), Inches(2.3), Inches(0.3), Inches(0.5))
+            row2_y = Inches(3.0)
+            for i, tech in enumerate(bottom_items):
+                x = Inches(0.8 + i * 3.0)
+                self.flow_box(s, x, row2_y, BOX_W, BOX_H, tech['name'], fill_color=COLORS[(i + 4) % len(COLORS)])
+                if i < len(bottom_items) - 1:
+                    self.arrow_right(s, x + BOX_W + Inches(0.1), row2_y + Inches(0.2), ARR_W, ARR_H)
+
+        # Tech descriptions
+        desc_y = Inches(4.2) if bottom_items else Inches(2.8)
+        self.tb(s, Inches(0.8), desc_y, Inches(4), Inches(0.5), '技術選型', sz=20, bold=True)
+        tech_items = [f"{t['name']}: {t['description']}" for t in tech_stack]
         if tech_items:
-            self.bullets(s, Inches(1.0), Inches(3.6), Inches(11), Inches(3.5),
+            self.bullets(s, Inches(1.0), desc_y + Inches(0.6), Inches(11), Inches(3),
                          tech_items, sz=14, sp=Pt(8))
+
+    def build_pricing_comparison(self):
+        """Bar chart comparing plans side by side."""
+        plans = self.a.get('pricing', {}).get('plans', [])
+        if len(plans) < 2:
+            return
+        s = self.new_slide()
+        self.slide_title(s, '方案對比')
+
+        plan_a = plans[0]
+        plan_b = plans[1]
+
+        # Build chart data
+        categories = [item['name'] for item in plan_b.get('items', [])]
+        values_a = []
+        values_b = [item.get('price', 0) for item in plan_b.get('items', [])]
+
+        a_items = {item['name']: item.get('price', 0) for item in plan_a.get('items', [])}
+        for cat in categories:
+            values_a.append(a_items.get(cat, 0))
+
+        chart_data = CategoryChartData()
+        chart_data.categories = categories
+        currency = plan_a.get('currency', 'NT$')
+        chart_data.add_series(f"{plan_a['label']}: {currency} {plan_a['total']:,}", values_a)
+        chart_data.add_series(f"{plan_b['label']}: {currency} {plan_b['total']:,}", values_b)
+
+        chart_frame = s.shapes.add_chart(
+            XL_CHART_TYPE.COLUMN_CLUSTERED,
+            Inches(0.8), Inches(1.3), Inches(7.5), Inches(5.5),
+            chart_data
+        )
+        chart = chart_frame.chart
+        chart.has_legend = True
+        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
+        chart.legend.font.size = Pt(12)
+        chart.legend.font.name = self.FONT
+
+        plot = chart.plots[0]
+        plot.gap_width = 120
+        plot.series[0].format.fill.solid()
+        plot.series[0].format.fill.fore_color.rgb = RGBColor(0xBD, 0xBD, 0xBD)
+        plot.series[1].format.fill.solid()
+        plot.series[1].format.fill.fore_color.rgb = self.PRIMARY
+
+        value_axis = chart.value_axis
+        value_axis.major_gridlines.format.line.color.rgb = RGBColor(0xEE, 0xEE, 0xEE)
+        value_axis.tick_labels.font.size = Pt(10)
+        value_axis.tick_labels.font.name = self.FONT
+        value_axis.tick_labels.number_format = '#,##0'
+
+        cat_axis = chart.category_axis
+        cat_axis.tick_labels.font.size = Pt(11)
+        cat_axis.tick_labels.font.name = self.FONT
+
+        # Right side: differences
+        b_only = [item['name'] for item in plan_b.get('items', []) if item['name'] not in a_items or a_items[item['name']] == 0]
+        b_upgraded = [item['name'] for item in plan_b.get('items', []) if item['name'] in a_items and a_items[item['name']] > 0 and item.get('price', 0) > a_items[item['name']]]
+
+        highlights = b_only + b_upgraded
+        if highlights:
+            self.tb(s, Inches(8.8), Inches(1.3), Inches(4), Inches(0.5),
+                    f"{plan_b['label']} 額外包含", sz=16, bold=True)
+            self.bullets(s, Inches(9.0), Inches(1.9), Inches(3.5), Inches(3),
+                         highlights, sz=13, sp=Pt(8))
+
+        diff = plan_b['total'] - plan_a['total']
+        if diff > 0 and b_only:
+            self.box(s, Inches(8.8), Inches(4.8), Inches(3.8), Inches(1.5), color=self.BG_WARM)
+            self.tb(s, Inches(9.0), Inches(4.95), Inches(3.5), Inches(0.4),
+                    f"差額僅 {currency} {diff:,}", sz=16, bold=True, color=self.PRIMARY, align=PP_ALIGN.CENTER)
+            per_item = diff // max(len(b_only), 1)
+            self.tb(s, Inches(9.0), Inches(5.45), Inches(3.5), Inches(0.6),
+                    f"多 {len(b_only)} 項功能\n平均每項僅 {currency} {per_item:,}",
+                    sz=12, color=self.GRAY, align=PP_ALIGN.CENTER)
+
+    def build_gantt_timeline(self):
+        """Gantt-style visual timeline."""
+        timeline = self.a.get('timeline', [])
+        if not timeline:
+            return
+        s = self.new_slide()
+        self.slide_title(s, '時程規劃')
+
+        GANTT_COLORS = [
+            RGBColor(0x95, 0xA5, 0xA6),
+            self.PRIMARY,
+            RGBColor(0x34, 0x98, 0xDB),
+            RGBColor(0x9B, 0x59, 0xB6),
+            RGBColor(0x2E, 0xCC, 0x71),
+            RGBColor(0x1A, 0xBC, 0x9C),
+        ]
+
+        total_phases = len(timeline)
+        total_weeks = max(total_phases + 2, 7)
+        gantt_left = Inches(3.8)
+        gantt_width = Inches(8.2)
+        week_w = gantt_width / total_weeks
+
+        # Week headers
+        for w in range(total_weeks):
+            x = gantt_left + week_w * w
+            self.tb(s, x, Inches(1.3), week_w, Inches(0.3),
+                    f"W{w+1}", sz=10, bold=True, color=self.LGRAY, align=PP_ALIGN.CENTER)
+            grid = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, Inches(1.6), Pt(0.5), Inches(total_phases * 0.55 + 0.2))
+            grid.fill.solid()
+            grid.fill.fore_color.rgb = RGBColor(0xF0, 0xF0, 0xF0)
+            grid.line.fill.background()
+
+        # Bars: auto-assign start positions sequentially
+        cumulative = 0
+        for i, phase in enumerate(timeline):
+            y = Inches(1.7) + Inches(i * 0.55)
+            dur = phase.get('duration', '1 week')
+
+            # Parse duration to weeks estimate
+            dur_weeks = 1
+            if '2' in dur and '3' in dur:
+                dur_weeks = 3
+            elif '1' in dur and '2' in dur:
+                dur_weeks = 2
+            elif '3' in dur or '4' in dur:
+                dur_weeks = 1
+            else:
+                dur_weeks = 1
+
+            # Label
+            self.tb(s, Inches(0.8), y, Inches(2.8), Inches(0.45),
+                    phase['phase'], sz=12, bold=True)
+
+            # Bar
+            x = gantt_left + week_w * cumulative
+            w = week_w * dur_weeks
+            bar = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y + Inches(0.05), w, Inches(0.35))
+            bar.fill.solid()
+            bar.fill.fore_color.rgb = GANTT_COLORS[i % len(GANTT_COLORS)]
+            bar.line.fill.background()
+            bar.shadow.inherit = False
+
+            tf = bar.text_frame
+            p = tf.paragraphs[0]
+            p.text = dur
+            p.font.size = Pt(9)
+            p.font.bold = True
+            p.font.color.rgb = self.WHITE
+            p.font.name = self.FONT
+            p.alignment = PP_ALIGN.CENTER
+
+            cumulative += dur_weeks
+
+        ts = self.a.get('timeline_summary', '')
+        if ts:
+            self.tb(s, Inches(0.8), Inches(1.7) + Inches(total_phases * 0.55) + Inches(0.3),
+                    Inches(11), Inches(0.3), ts, sz=12, color=self.LGRAY)
 
     def build_features(self):
         features = self.a.get('features', [])
@@ -327,7 +551,9 @@ class ProposalGenerator:
         for i, plan in enumerate(plans):
             self.build_pricing(plan, slide_num=4 + i, is_recommended=plan.get('recommended', False))
 
+        self.build_pricing_comparison()
         self.build_maintenance_timeline()
+        self.build_gantt_timeline()
         self.build_terms()
         self.build_why_us()
 
