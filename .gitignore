@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.pptx
+!examples/*.pptx
+output/
+__pycache__/
+*.pyc
+.DS_Store

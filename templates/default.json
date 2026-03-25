@@ -1,0 +1,27 @@
+{
+  "slide_size": {
+    "width": 13.333,
+    "height": 7.5
+  },
+  "colors": {
+    "primary": "#E67E22",
+    "dark": "#1A1A1A",
+    "gray": "#555555",
+    "light_gray": "#999999",
+    "white": "#FFFFFF",
+    "bg_light": "#FAFAFA",
+    "bg_warm": "#FEF9F4"
+  },
+  "fonts": {
+    "primary": "PingFang TC",
+    "_comment": "Windows: Microsoft JhengHei, Linux: Noto Sans TC"
+  },
+  "company": {
+    "name": "",
+    "title": "",
+    "website": ""
+  },
+  "proposal": {
+    "validity_days": 30
+  }
+}

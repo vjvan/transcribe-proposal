@@ -1,0 +1,27 @@
+{
+  "name": "transcribe-proposal",
+  "version": "0.1.0",
+  "description": "Convert meeting audio recordings into structured PPTX proposals",
+  "bin": {
+    "transcribe-proposal": "./bin/transcribe-proposal.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "transcribe",
+    "proposal",
+    "pptx",
+    "whisper",
+    "meeting",
+    "cli",
+    "openai",
+    "presentation"
+  ],
+  "author": "vjvan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vjvan/transcribe-proposal.git"
+  }
+}
