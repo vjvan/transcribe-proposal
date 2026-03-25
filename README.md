@@ -6,6 +6,18 @@
 
 [繁體中文](#功能) | [English](#english) | [日本語](#日本語)
 
+### 產出範例
+
+<p align="center">
+  <img src="assets/slide-architecture.png" width="700" alt="系統架構流程圖">
+</p>
+<p align="center">
+  <img src="assets/slide-pricing-comparison.png" width="700" alt="方案對比長條圖">
+</p>
+<p align="center">
+  <img src="assets/slide-gantt-timeline.png" width="700" alt="Gantt 時程圖">
+</p>
+
 ---
 
 ## 功能
@@ -269,7 +281,16 @@ Proposal (.pptx)
 
 ### Proposal Structure
 
-The generated PPTX contains 9 slides:
+<p align="center">
+  <img src="assets/slide-cover.png" width="400" alt="Cover slide">
+  <img src="assets/slide-features.png" width="400" alt="Features slide">
+</p>
+<p align="center">
+  <img src="assets/slide-pricing-comparison.png" width="400" alt="Pricing comparison chart">
+  <img src="assets/slide-gantt-timeline.png" width="400" alt="Gantt timeline">
+</p>
+
+The generated PPTX contains 9+ slides:
 
 1. **Cover** - Proposal title, date, your info
 2. **Background & Goals** - Client situation and project objectives
@@ -450,7 +471,12 @@ ffmpeg -i input.mp3 -b:a 64k -ar 16000 output.mp3
 
 ### 提案書の構成
 
-生成される PPTX は 9 ページで構成されます:
+<p align="center">
+  <img src="assets/slide-architecture.png" width="400" alt="システム構成図">
+  <img src="assets/slide-pricing-comparison.png" width="400" alt="プラン比較チャート">
+</p>
+
+生成される PPTX は 9 ページ以上で構成されます:
 
 1. **表紙** - 提案タイトル、日付、提案者情報
 2. **背景と目標** - クライアントの状況とプロジェクト目標
